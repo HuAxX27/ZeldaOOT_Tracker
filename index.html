@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ocarina 100% · Tracker de Zelda: Ocarina of Time</title>
+  <meta name="description" content="Lleva el 100% de Zelda: Ocarina of Time (N64 y 3DS) en español: objetos, canciones, corazones, las 100 Skulltulas doradas y más, con guía para conseguir cada uno." />
+  <meta name="theme-color" content="#0e1311" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 88'%3E%3Cpath fill='%23d9b45a' d='M50 0l25 44H25zM25 44l25 44H0zM75 44l25 44H50z'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="top">
+    <div class="top-in">
+      <a class="marca" href="/" aria-label="Inicio">
+        <svg class="trifuerza" viewBox="0 0 100 88" aria-hidden="true"><path d="M50 0l25 44H25zM25 44l25 44H0zM75 44l25 44H50z"/></svg>
+        <span><b>Ocarina 100%</b><small>Tracker en español</small></span>
+      </a>
+      <div id="cuenta" class="cuenta"></div>
+    </div>
+  </header>
+
+  <main id="app" class="contenedor">
+    <p class="cargando">Cargando…</p>
+  </main>
+
+  <footer class="pie contenedor">
+    <p>Proyecto de fans sin relación con Nintendo. The Legend of Zelda es marca de Nintendo.</p>
+  </footer>
+
+  <dialog id="dlg" class="dlg"></dialog>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
