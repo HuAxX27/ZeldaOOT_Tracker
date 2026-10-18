@@ -2,9 +2,21 @@
 
 Sitio estático (HTML + JS sin build). Datos y cuentas en Supabase (proyecto `zelda-oot-tracker`).
 
+## Probar en tu computadora
+Necesita un servidor local porque la página usa módulos de JavaScript (abrir `index.html` con doble clic no funciona).
+
+```
+npm start          # o: python -m http.server 8000
+```
+
+Abre la dirección que muestre la terminal (normalmente http://localhost:3000).
+Sin cuenta, el progreso se guarda en el navegador. Si el servidor de cuentas no está disponible,
+la página sigue funcionando en ese modo.
+
 ## Publicar en Vercel
-Crea un proyecto vacío en Vercel (Framework: "Other", sin comando de build) y sube esta carpeta,
-o arrástrala en vercel.com/new. No necesita variables de entorno.
+Importa el repositorio en vercel.com/new (Framework: "Other", sin comando de build ni variables de entorno).
+Cada `git push` a `main` vuelve a publicar la página. También funciona en GitHub Pages o cualquier hosting estático,
+incluso dentro de una subcarpeta.
 
 ## Activar "Entrar con Google" (una sola vez)
 1. Google Cloud Console → APIs y servicios → Credenciales → Crear ID de cliente OAuth (Aplicación web).
