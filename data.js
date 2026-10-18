@@ -386,3 +386,11 @@ export const RECOMPENSAS_SKULLTULA = [
   [10, "Cartera de adulto"], [20, "Piedra de la Agonía"], [30, "Cartera gigante"],
   [40, "10 Bombchus"], [50, "Pieza de corazón"], [100, "Rupias enormes ilimitadas"],
 ];
+
+// Elementos que se suelen pasar por alto: escondidos, aleatorios, con minijuego o que caducan.
+// Las Skulltulas nocturnas, invisibles o tras paredes falsas se marcan aparte, por regla (ver app.js).
+export const DIFICILES = new Set([
+  "pc-01", "pc-02", "pc-03", "pc-06", "pc-09", "pc-10", "pc-12", "pc-13", "pc-14",
+  "pc-17", "pc-24", "pc-25", "pc-32", "pc-33", "pc-35",
+  "seta-extrana", "rana-ocular", "gotas", "espantapajaros",
+]);
