@@ -1,0 +1,8 @@
+{
+  "name": "ocarina-100",
+  "private": true,
+  "description": "Tracker 100% de Zelda: Ocarina of Time en español",
+  "scripts": {
+    "start": "npx --yes serve@14.2.4 ."
+  }
+}

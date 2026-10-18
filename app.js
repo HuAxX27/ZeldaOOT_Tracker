@@ -1,9 +1,15 @@
-import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm";
 import { ZONAS, CATEGORIAS, elementosDe, RECOMPENSAS_SKULLTULA } from "./data.js";
 
 const SUPABASE_URL = "https://pfqsdiunpfpjlbhojimh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_K9Dngp-mR-Y5SNzmZvU0hQ_8JnwbBEN";
-const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+// Si la librería de Supabase no carga (sin red, CDN bloqueado), la página sigue en modo sin cuenta.
+let sb = null;
+try {
+  const { createClient } = await import("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm");
+  sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+} catch (e) {
+  console.error("No se pudo cargar Supabase; se usa solo el navegador.", e);
+}
 
 const VERSIONES = {
   n64: { nombre: "Nintendo 64", corto: "N64" },
@@ -403,11 +409,15 @@ function dlgOpciones() {
 
 // ───────── Acciones ─────────
 async function entrar() {
+  if (!sb) {
+    toast("No se pudo conectar con el servidor de cuentas. Tu progreso sigue guardado en este navegador.");
+    return;
+  }
   if (S.googleActivo === false) {
     toast("El inicio con Google aún no está activado en el servidor. Tu progreso sigue guardado en este navegador.");
     return;
   }
-  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin } });
+  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: location.origin + location.pathname } });
   if (error) toast("No se pudo iniciar sesión: " + error.message);
 }
 
@@ -470,7 +480,7 @@ document.addEventListener("click", async (ev) => {
   const item = el.closest(".item");
   switch (acc) {
     case "entrar": entrar(); break;
-    case "salir": await sb.auth.signOut(); break;
+    case "salir": await sb?.auth.signOut(); break;
     case "marcar": marcar(item.dataset.id); break;
     case "abrir": {
       const id = item.dataset.id;
@@ -548,7 +558,8 @@ fetch(`${SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: SUPABASE_KEY } })
   .then((r) => r.json()).then((s) => { S.googleActivo = !!s?.external?.google; }).catch(() => {});
 
 let ultimoUid;
-sb.auth.onAuthStateChange((_evt, session) => {
+if (!sb) { S.googleActivo = false; cargarTodo(); }
+else sb.auth.onAuthStateChange((_evt, session) => {
   const uid = session?.user?.id ?? null;
   S.user = session?.user ?? null;
   if (uid === ultimoUid) { renderCuenta(); return; }
