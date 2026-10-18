@@ -1,4 +1,4 @@
-import { ZONAS, CATEGORIAS, elementosDe, RECOMPENSAS_SKULLTULA } from "./data.js";
+import { ZONAS, CATEGORIAS, elementosDe, RECOMPENSAS_SKULLTULA, DIFICILES } from "./data.js";
 
 const SUPABASE_URL = "https://pfqsdiunpfpjlbhojimh.supabase.co";
 const SUPABASE_KEY = "sb_publishable_K9Dngp-mR-Y5SNzmZvU0hQ_8JnwbBEN";
@@ -28,7 +28,8 @@ const S = {
   hechos: new Set(),
   cat: "objetos",
   q: "",
-  pendientes: false,
+  estado: "", // "", "pendientes" o "conseguidos"
+  dificiles: false,
   edad: "",
   zona: "",
   abiertos: new Set(),
@@ -182,7 +183,7 @@ function renderCuenta() {
       <span class="nombre-u">${esc(m.full_name || m.name || S.user.email)}</span>
       <button class="btn chico" data-acc="salir">Salir</button>`;
   } else {
-    $cuenta.innerHTML = `<button class="btn btn-google chico" data-acc="entrar">${G_LOGO}Entrar con Google</button>`;
+    $cuenta.innerHTML = `<button class="btn btn-google chico" data-acc="entrar">${G_LOGO}Entrar<span class="solo-ancho"> con Google</span></button>`;
   }
 }
 
@@ -216,23 +217,39 @@ function formPartida({ titulo, boton, p = {} }) {
 
 function avisoImportar() {
   const n = S.user ? local.partidas().length : 0;
-  return n ? `<div class="aviso"><p>Tienes ${n} partida(s) guardada(s) en este navegador.</p><button class="btn prim chico" data-acc="importar">Pasarlas a mi cuenta</button></div>` : "";
+  return n ? `<div class="aviso"><p>Tienes ${n} partida(s) guardada(s) en este navegador.</p><button class="btn prim chico" data-acc="importar">Continuar con ellas en mi cuenta</button></div>` : "";
 }
 
 function renderBienvenida() {
   $app.innerHTML = `
     ${avisoImportar()}
-    <section class="hero">
-      <h1>Completa <span>Ocarina of Time</span> al 100%</h1>
-      <p>Marca cada objeto, canción, corazón y Skulltula dorada con un toque, y consulta cómo conseguir lo que te falta. Original de N64 y remake de 3DS.</p>
-    </section>
-    <div class="tarjeta crear">${formPartida({ titulo: "Empieza tu partida", boton: "Crear partida" })}</div>
-    ${!S.user ? `<p class="nota" style="text-align:center;margin-top:12px">Sin cuenta, tu progreso se guarda en este navegador. Entra con Google para tenerlo en cualquier dispositivo.</p>` : ""}
-    <div class="ventajas">
-      <div><b>245 elementos</b><span>Objetos, equipo, mejoras, canciones, 36 piezas de corazón, 100 Skulltulas y secuencias de intercambio.</span></div>
-      <div><b>Guía en cada uno</b><span>Toca un elemento para ver dónde está, con qué edad y qué necesitas.</span></div>
-      <div><b>Varias partidas</b><span>Lleva una partida de N64 y otra de 3DS (o Master Quest) por separado.</span></div>
-    </div>`;
+    <section class="inicio">
+      <div class="inicio-intro">
+        <h1>Completa <span>Ocarina of Time</span> al 100%</h1>
+        <p>Marca objetos, canciones, corazones y Skulltulas, con la guía de cada uno. N64 y 3DS.</p>
+        <button class="enlace" data-acc="ayuda">¿Cómo funciona?</button>
+      </div>
+      <div class="inicio-acciones">
+        <div class="tarjeta crear">${formPartida({ titulo: "Nueva partida", boton: "Crear partida" })}</div>
+        ${!S.user ? `<div class="continuar">
+          <span>¿Ya tienes una partida guardada en tu cuenta?</span>
+          <button class="btn btn-google" data-acc="entrar">${G_LOGO}Continuar partida</button>
+        </div>` : ""}
+      </div>
+    </section>`;
+}
+
+function dlgAyuda() {
+  abrirDlg(`
+    <h2>Cómo funciona</h2>
+    <div class="ayuda">
+      <div><b>245 elementos</b><p>Objetos, botellas, equipo, mejoras, canciones, piedras y medallones, 36 piezas y 8 contenedores de corazón, las 100 Skulltulas doradas y las secuencias de intercambio.</p></div>
+      <div><b>Guía en cada uno</b><p>Toca el nombre de un elemento para ver dónde está, con qué edad y qué necesitas. Toca el círculo para marcarlo como conseguido.</p></div>
+      <div><b>Filtros</b><p>Busca por nombre o lugar, muestra solo lo pendiente o lo conseguido, y usa «Difíciles» para ver lo que más se suele pasar por alto: Skulltulas nocturnas o invisibles, minijuegos y objetos que caducan.</p></div>
+      <div><b>Varias partidas</b><p>Lleva una partida de N64 y otra de 3DS (o Master Quest) por separado.</p></div>
+      <div><b>Dónde se guarda</b><p>Sin cuenta, el progreso se queda en este navegador. Entra con Google para tenerlo en cualquier dispositivo; las partidas que ya tengas aquí se pueden pasar a tu cuenta.</p></div>
+    </div>
+    <div class="acciones"><button class="btn prim" data-acc="cerrar-dlg">Entendido</button></div>`);
 }
 
 // ───────── Render: tracker ─────────
@@ -250,8 +267,11 @@ function calcular(items) {
 function filtrar(items, p) {
   const q = norm(S.q.trim());
   return items.filter((it) => {
-    if (it.cat !== S.cat) return false;
-    if (S.pendientes && S.hechos.has(it.id)) return false;
+    // Con búsqueda se busca en todas las categorías; sin ella, solo en la elegida.
+    if (!q && it.cat !== S.cat) return false;
+    if (S.estado === "pendientes" && S.hechos.has(it.id)) return false;
+    if (S.estado === "conseguidos" && !S.hechos.has(it.id)) return false;
+    if (S.dificiles && !esDificil(it)) return false;
     if (S.edad && it.e !== S.edad && it.e !== "na") return false;
     if (S.zona && it.z !== S.zona) return false;
     if (q) {
@@ -268,10 +288,19 @@ const ICO_CHEV = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" str
 // Skulltulas y corazones se identifican mejor por su ubicación que por su nombre.
 const esUbicacion = (it) => it.cat === "skulltulas" || it.cat === "corazones";
 
+// Lo que se suele pasar por alto: la lista fija de data.js más las Skulltulas
+// que solo salen de noche, son invisibles o están tras paredes falsas o bloques.
+function esDificil(it) {
+  if (DIFICILES.has(it.id)) return true;
+  if (it.cat !== "skulltulas") return false;
+  return !!it.noche || /Lente de la Verdad|espantapájaros/.test(it.req) || /invisible|oculta|pared falsa|bajo un bloque/i.test(it.g);
+}
+
 function htmlItem(it, p) {
   const hecho = S.hechos.has(it.id);
   const abierto = S.abiertos.has(it.id);
   const nota = it.v?.[p.version];
+  const dificil = esDificil(it);
   return `
     <article class="item ${hecho ? "hecho" : ""} ${abierto ? "abierto" : ""}" data-id="${it.id}">
       <div class="item-cab">
@@ -280,17 +309,22 @@ function htmlItem(it, p) {
           <b>${esc(nombreDe(it, p.version))}${it.en && !esUbicacion(it) ? `<span class="en">${esc(it.en)}</span>` : ""}</b>
           ${esUbicacion(it) ? `<span class="resumen-g">${esc(it.g)}</span>` : ""}
           <span class="meta">
-            ${S.cat !== "skulltulas" && S.cat !== "corazones" ? `<span class="tag">${esc(ZONAS[it.z])}</span>` : ""}
+            ${!esUbicacion(it) ? `<span class="tag">${esc(ZONAS[it.z])}</span>` : ""}
             <span class="tag ${it.e === "na" ? "" : it.e}">${EDADES[it.e]}</span>
             ${it.noche ? `<span class="tag noche">De noche</span>` : ""}
+            ${dificil ? `<span class="tag dif">Difícil</span>` : ""}
             ${it.req ? `<span class="tag">${esc(it.req)}</span>` : ""}
           </span>
         </button>
-        <button class="chev" data-acc="abrir" aria-label="Ver guía">${ICO_CHEV}</button>
+        <button class="chev" data-acc="abrir" aria-label="Ver guía" aria-expanded="${abierto}">${ICO_CHEV}</button>
       </div>
       <div class="guia">
-        <p>${esc(it.g)}</p>
-        <p class="req"><b>Dónde:</b> ${esc(ZONAS[it.z])} · <b>Edad:</b> ${EDADES[it.e]}${it.noche ? " · <b>Solo de noche</b>" : ""}${it.req ? ` · <b>Necesitas:</b> ${esc(it.req)}` : ""}</p>
+        <dl class="ficha">
+          <div><dt>Dónde</dt><dd>${esc(ZONAS[it.z])}</dd></div>
+          <div><dt>Edad</dt><dd>${EDADES[it.e]}${it.noche ? " · solo de noche" : ""}</dd></div>
+          <div class="ancho"><dt>Necesitas</dt><dd>${it.req ? esc(it.req) : "Nada especial"}</dd></div>
+        </dl>
+        <p class="como">${esc(it.g)}</p>
         ${nota ? `<p class="vnota">Nota ${VERSIONES[p.version].corto}: ${esc(nota)}</p>` : ""}
       </div>
     </article>`;
@@ -298,7 +332,20 @@ function htmlItem(it, p) {
 
 function htmlLista(lista, p) {
   if (!lista.length) {
-    return `<p class="vacio">${S.pendientes && !S.q && !S.zona && !S.edad ? "¡Completaste esta categoría! 🎉" : "No hay elementos con estos filtros."}</p>`;
+    const sinFiltros = !S.q && !S.zona && !S.edad && !S.dificiles;
+    const msg = S.estado === "pendientes" && sinFiltros ? "¡Completaste esta categoría! 🎉"
+      : S.estado === "conseguidos" && sinFiltros ? "Aún no has marcado nada en esta categoría."
+      : "No hay elementos con estos filtros.";
+    return `<p class="vacio">${msg}</p>`;
+  }
+  if (S.q.trim()) {
+    const grupos = {};
+    lista.forEach((it) => (grupos[it.cat] ||= []).push(it));
+    return `<p class="resultados">${lista.length} resultado(s) en todas las categorías</p>` + CATEGORIAS.filter((c) => grupos[c.id]).map((c) => {
+      const its = grupos[c.id];
+      const h = its.filter((it) => S.hechos.has(it.id)).length;
+      return `<h3 class="grupo-t"><span>${esc(c.nombre)}</span><span>${h}/${its.length}</span></h3>${its.map((it) => htmlItem(it, p)).join("")}`;
+    }).join("");
   }
   const agrupar = S.cat === "skulltulas" || S.cat === "corazones";
   if (S.cat === "extras") {
@@ -328,44 +375,60 @@ function renderTracker() {
     .sort((a, b) => ORDEN_ZONAS.indexOf(a) - ORDEN_ZONAS.indexOf(b));
   if (S.zona && !zonasCat.includes(S.zona)) S.zona = "";
   const fichas = items.filter((it) => it.cat === "skulltulas" && S.hechos.has(it.id)).length;
+  const sigRecompensa = RECOMPENSAS_SKULLTULA.find(([n]) => fichas < n);
+  const nombreRecompensa = (n, txt) => (n === 20 && p.version === "3ds" ? "Fragmento de la Agonía" : txt);
+  const faltan = r.total - r.hechos;
 
   $app.innerHTML = `
-    ${!S.user ? `<div class="aviso"><p>Estás sin cuenta: el progreso se guarda solo en este navegador.</p><button class="btn btn-google chico" data-acc="entrar">${G_LOGO}Guardar en mi cuenta</button></div>` : ""}
     ${avisoImportar()}
 
     <div class="partida-bar">
       <select id="sel-partida" aria-label="Partida">
         ${S.partidas.map((x) => `<option value="${x.id}" ${x.id === S.pid ? "selected" : ""}>${esc(x.nombre)}</option>`).join("")}
       </select>
-      <span class="etiqueta-ver">${VERSIONES[p.version]?.corto || p.version}${p.master_quest ? " · Master Quest" : ""}</span>
-      <button class="btn chico" data-acc="nueva">+ Nueva</button>
+      <span class="etiqueta-ver">${VERSIONES[p.version]?.corto || p.version}${p.master_quest ? " · MQ" : ""}</span>
+      <button class="btn chico" data-acc="nueva" aria-label="Nueva partida">+<span class="solo-ancho"> Nueva</span></button>
       <button class="btn chico" data-acc="opciones">Opciones</button>
     </div>
 
-    <section class="resumen">
-      <div class="anillo" role="img" aria-label="${pct}% completado">
-        <svg viewBox="0 0 120 120"><circle class="pista" cx="60" cy="60" r="54" fill="none" stroke-width="10"/><circle class="valor" cx="60" cy="60" r="54" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - r.hechos / (r.total || 1))}"/></svg>
-        <div class="centro"><b>${pct}%</b><small>${r.hechos} / ${r.total}</small></div>
+    <section class="tablero" aria-label="Progreso de la partida">
+      <div class="total">
+        <div class="anillo" role="img" aria-label="${pct}% completado">
+          <svg viewBox="0 0 120 120"><circle class="pista" cx="60" cy="60" r="54" fill="none" stroke-width="10"/><circle class="valor" cx="60" cy="60" r="54" fill="none" stroke-width="10" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - r.hechos / (r.total || 1))}"/></svg>
+          <div class="centro"><b>${pct}%</b></div>
+        </div>
+        <div class="total-txt">
+          <h2>${faltan ? "Progreso total" : "¡100% completado!"}</h2>
+          <p><b>${r.hechos}</b> de ${r.total} conseguidos${faltan ? ` · te faltan <b>${faltan}</b>` : ""}</p>
+          ${sigRecompensa ? `<p class="sig">Próxima recompensa Skulltula: ${nombreRecompensa(...sigRecompensa)} a las ${sigRecompensa[0]} fichas (llevas ${fichas}).</p>` : ""}
+        </div>
       </div>
-      <div class="barras">
+      <div class="cats">
         ${CATEGORIAS.map((c) => {
           const x = r.porCat[c.id];
-          const w = x.total ? (x.hechos / x.total) * 100 : 0;
-          return `<button class="barra ${x.hechos === x.total ? "completa" : ""} ${c.id === S.cat ? "activa" : ""}" data-acc="cat" data-cat="${c.id}">
-            <span class="fila"><span>${c.nombre}</span><span>${x.hechos}/${x.total}</span></span>
-            <span class="riel"><i style="width:${w}%"></i></span></button>`;
+          const w = x.total ? Math.floor((x.hechos / x.total) * 100) : 0;
+          return `<button class="cat-t ${x.hechos === x.total ? "completa" : ""}" data-acc="cat" data-cat="${c.id}" aria-pressed="${c.id === S.cat}">
+            <span class="cat-n">${c.corto}</span>
+            <span class="cat-v"><b>${x.hechos}</b>/${x.total}</span>
+            <span class="riel"><i style="width:${w}%"></i></span>
+          </button>`;
         }).join("")}
       </div>
+      ${!S.user ? `<p class="guardado">Guardado solo en este navegador. <button class="enlace" data-acc="entrar">Guardar en mi cuenta de Google</button></p>` : ""}
     </section>
 
-    <nav class="pestanas" role="tablist">
+    <nav class="pestanas" role="tablist" aria-label="Categorías">
       ${CATEGORIAS.map((c) => `<button class="pestana" role="tab" data-acc="cat" data-cat="${c.id}" aria-selected="${c.id === S.cat}">${c.corto}<em>${r.porCat[c.id].hechos}/${r.porCat[c.id].total}</em></button>`).join("")}
     </nav>
 
     <div class="filtros">
       <label class="buscar"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5" stroke-linecap="round"/></svg>
-        <input id="f-buscar" type="search" placeholder="Buscar (ej. gancho, lago, noche…)" value="${esc(S.q)}" aria-label="Buscar"></label>
-      <button class="chip-f" data-acc="pendientes" aria-pressed="${S.pendientes}">Solo pendientes</button>
+        <input id="f-buscar" type="search" placeholder="Buscar en todo (ej. gancho, lago, noche…)" value="${esc(S.q)}" aria-label="Buscar"></label>
+      <div class="segmento" role="group" aria-label="Mostrar">
+        ${[["", "Todos"], ["pendientes", "Pendientes"], ["conseguidos", "Conseguidos"]].map(([v, t]) =>
+          `<button data-acc="estado" data-estado="${v}" aria-pressed="${S.estado === v}">${t}</button>`).join("")}
+      </div>
+      <button class="chip-f" data-acc="dificiles" aria-pressed="${S.dificiles}">Difíciles</button>
       <select id="f-edad" aria-label="Edad">
         <option value="">Todas las edades</option>
         <option value="n" ${S.edad === "n" ? "selected" : ""}>Link niño</option>
@@ -486,16 +549,21 @@ document.addEventListener("click", async (ev) => {
       const id = item.dataset.id;
       S.abiertos.has(id) ? S.abiertos.delete(id) : S.abiertos.add(id);
       item.classList.toggle("abierto");
-      item.querySelector(".item-txt").setAttribute("aria-expanded", S.abiertos.has(id));
+      item.querySelectorAll("[data-acc=abrir]").forEach((b) => b.setAttribute("aria-expanded", S.abiertos.has(id)));
       break;
     }
     case "cat":
-      S.cat = el.dataset.cat; S.zona = ""; S.abiertos.clear();
+      S.cat = el.dataset.cat; S.zona = ""; S.q = ""; S.abiertos.clear();
       renderTracker();
-      if (el.classList.contains("barra")) document.querySelector(".filtros")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      if (el.classList.contains("cat-t")) document.querySelector(".filtros")?.scrollIntoView({ behavior: "smooth", block: "start" });
       document.querySelector(`.pestana[data-cat="${S.cat}"]`)?.scrollIntoView({ inline: "center", block: "nearest" });
       break;
-    case "pendientes": S.pendientes = !S.pendientes; el.setAttribute("aria-pressed", S.pendientes); renderLista(); break;
+    case "estado":
+      S.estado = el.dataset.estado;
+      el.parentElement.querySelectorAll("[data-acc=estado]").forEach((b) => b.setAttribute("aria-pressed", b === el));
+      renderLista(); break;
+    case "dificiles": S.dificiles = !S.dificiles; el.setAttribute("aria-pressed", S.dificiles); renderLista(); break;
+    case "ayuda": dlgAyuda(); break;
     case "nueva": dlgNueva(); break;
     case "opciones": dlgOpciones(); break;
     case "cerrar-dlg": $dlg.close(); break;
