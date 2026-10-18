@@ -240,3 +240,10 @@ h3 { margin: 0; }
   .cats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .versiones { grid-template-columns: 1fr; }
 }
+
+/* Página de privacidad */
+.legal { max-width: 720px; padding-top: 28px; padding-bottom: 32px; }
+.legal h1 { font-size: clamp(24px, 4vw, 32px); }
+.legal h2 { font-size: 18px; color: var(--oro2); margin: 24px 0 6px; }
+.legal p { color: var(--suave); margin: 0 0 10px; }
+.legal a, .pie a { color: var(--oro2); }
